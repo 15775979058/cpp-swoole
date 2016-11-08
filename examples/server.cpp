@@ -10,7 +10,7 @@ public:
     MyServer(string _host, int _port, int _mode = SW_MODE_PROCESS, int _type = SW_SOCK_TCP) :
             Server(_host, _port, _mode, _type)
     {
-        SwooleG.task_worker_num = 2;
+        //SwooleG.task_worker_num = 2;
     }
 
     virtual void onStart();
@@ -27,29 +27,29 @@ public:
 
     }
 
-    virtual void onReceive(int fd, string &data);
+    virtual void onReceive(int fd, const DataBuffer &data);
 
     virtual void onConnect(int fd);
 
     virtual void onClose(int fd);
 
-    virtual void onPacket(string &data, ClientInfo &clientInfo){
+    virtual void onPacket(const DataBuffer &data, ClientInfo &clientInfo){
 
     }
 
-    virtual void onTask(int task_id, int src_worker_id, string &data);
-    virtual void onFinish(int task_id, string &data);
+    virtual void onTask(int task_id, int src_worker_id, const DataBuffer &data);
+    virtual void onFinish(int task_id, const DataBuffer &data);
 };
 
-void MyServer::onReceive(int fd, string &data)
+void MyServer::onReceive(int fd, const DataBuffer &data)
 {
     swConnection *conn = swWorker_get_connection(&this->serv, fd);
     printf("onReceive: fd=%d, ip=%s|port=%d Data=%s|Len=%ld\n", fd, swConnection_get_ip(conn),
-           swConnection_get_port(conn), (char *) data.c_str(), data.length());
+           swConnection_get_port(conn), (char *) data.buffer, data.length);
 
     int ret;
     char resp_data[SW_BUFFER_SIZE];
-    int n = snprintf(resp_data, SW_BUFFER_SIZE, (char *) "Server: %*s\n", (int) data.length(), data.c_str());
+    int n = snprintf(resp_data, SW_BUFFER_SIZE, (char *) "Server: %*s\n", (int) data.length, (char *) data.buffer);
     ret = this->send(fd, resp_data, (uint32_t) n);
     if (ret < 0)
     {
@@ -59,8 +59,8 @@ void MyServer::onReceive(int fd, string &data)
     {
         printf("send %d bytes to client success. data=%s\n", n, resp_data);
     }
-    string task("hello world\n");
-    this->task(task);
+    DataBuffer task_data("hello world\n");
+    this->task(task_data);
 //    this->close(fd);
 }
 
@@ -74,12 +74,12 @@ void MyServer::onClose(int fd)
     printf("PID=%d\tClose fd=%d\n", getpid(), fd);
 }
 
-void MyServer::onTask(int task_id, int src_worker_id, string &data)
+void MyServer::onTask(int task_id, int src_worker_id, const DataBuffer &data)
 {
     printf("PID=%d\tTaskID=%d\n", getpid(), task_id);
 }
 
-void MyServer::onFinish(int task_id, string &data)
+void MyServer::onFinish(int task_id, const DataBuffer &data)
 {
     printf("PID=%d\tClose fd=%d\n", getpid(), task_id);
 }
@@ -91,7 +91,7 @@ void MyServer::onStart()
 
 int main(int argc, char **argv)
 {
-    MyServer server("127.0.0.1", 9501);
+    MyServer server("127.0.0.1", 9501, SW_MODE_SINGLE);
     server.listen("127.0.0.1", 9502, SW_SOCK_UDP);
     server.listen("::1", 9503, SW_SOCK_TCP6);
     server.listen("::1", 9504, SW_SOCK_UDP6);

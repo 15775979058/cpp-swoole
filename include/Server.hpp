@@ -22,6 +22,40 @@ namespace swoole
         int server_socket;
     };
 
+    struct DataBuffer
+    {
+        size_t length;
+        void *buffer;
+
+        DataBuffer()
+        {
+            length = 0;
+            buffer = NULL;
+        }
+
+        DataBuffer(const char *str)
+        {
+            copy((void *) str, strlen(str));
+        }
+
+        DataBuffer(string &str)
+        {
+            copy((void *) str.c_str(), str.length());
+        }
+
+        DataBuffer(const char *str, size_t length)
+        {
+            copy((void *) str, length);
+        }
+
+        void copy(void *_data, size_t _length)
+        {
+            length = _length;
+            buffer = malloc(_length);
+            memcpy(buffer, _data, _length);
+        }
+    };
+
     enum
     {
         EVENT_onStart = 1u << 1,
@@ -51,18 +85,18 @@ namespace swoole
         bool send(int fd, const char *data, int length);
         bool close(int fd, bool reset = false);
         bool sendto(string &ip, int port, string &data, int server_socket = -1);
-        int task(string &data, int dst_worker_id = -1);
+        int task(DataBuffer &data, int dst_worker_id = -1);
 
         virtual void onStart() = 0;
         virtual void onShutdown() = 0;
         virtual void onWorkerStart(int worker_id) = 0;
         virtual void onWorkerStop(int worker_id) = 0;
-        virtual void onReceive(int fd, string &data) = 0;
+        virtual void onReceive(int fd, const DataBuffer &data) = 0;
         virtual void onConnect(int fd) = 0;
         virtual void onClose(int fd) = 0;
-        virtual void onPacket(string &data, ClientInfo &clientInfo) = 0;
-        virtual void onTask(int, int, string &data) = 0;
-        virtual void onFinish(int, string &data) = 0;
+        virtual void onPacket(const DataBuffer &, ClientInfo &) = 0;
+        virtual void onTask(int, int, const DataBuffer &) = 0;
+        virtual void onFinish(int, const DataBuffer &) = 0;
 
     public:
         static int _onReceive(swServer *serv, swEventData *req);
