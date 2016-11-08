@@ -10,3 +10,4 @@ install_manifest.txt
 /examples/Makefile
 /examples/cmake_install.cmake
 /examples/server
+/build/
