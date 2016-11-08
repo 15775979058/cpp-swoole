@@ -32,6 +32,8 @@ namespace swoole
         EVENT_onReceive = 1u << 6,
         EVENT_onPacket = 1u << 7,
         EVENT_onClose = 1u << 8,
+        EVENT_onTask = 1u << 9,
+        EVENT_onFinish = 1u << 10,
     };
 
     class Server
@@ -49,6 +51,7 @@ namespace swoole
         bool send(int fd, const char *data, int length);
         bool close(int fd, bool reset = false);
         bool sendto(string &ip, int port, string &data, int server_socket = -1);
+        int task(string &data, int dst_worker_id = -1);
 
         virtual void onStart() = 0;
         virtual void onShutdown() = 0;
@@ -58,6 +61,8 @@ namespace swoole
         virtual void onConnect(int fd) = 0;
         virtual void onClose(int fd) = 0;
         virtual void onPacket(string &data, ClientInfo &clientInfo) = 0;
+        virtual void onTask(int, int, string &data) = 0;
+        virtual void onFinish(int, string &data) = 0;
 
     public:
         static int _onReceive(swServer *serv, swEventData *req);
@@ -68,6 +73,8 @@ namespace swoole
         static void _onShutdown(swServer *serv);
         static void _onWorkerStart(swServer *serv, int worker_id);
         static void _onWorkerStop(swServer *serv, int worker_id);
+        static int _onTask(swServer *serv, swEventData *task);
+        static int _onFinish(swServer *serv, swEventData *task);
 
     protected:
         swServer serv;

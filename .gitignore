@@ -4,3 +4,9 @@
 /CMakeCache.txt
 /Makefile
 /cmake_install.cmake
+install_manifest.txt
+/lib/
+/examples/CMakeCache.txt
+/examples/Makefile
+/examples/cmake_install.cmake
+/examples/server

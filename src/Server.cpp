@@ -1,4 +1,4 @@
-#include "Server.h"
+#include "Server.hpp"
 
 #include <iostream>
 
@@ -123,7 +123,118 @@ namespace swoole
         {
             ret = serv.factory.end(&serv.factory, fd);
         }
-        return ret == SW_OK ? true : false;
+        return ret == SW_OK;
+    }
+
+    static int task_id = 0;
+
+    static int task_pack(swEventData *task, string &data)
+    {
+        task->info.type = SW_EVENT_TASK;
+        //field fd save task_id
+        task->info.fd = task_id++;
+        //field from_id save the worker_id
+        task->info.from_id = SwooleWG.id;
+        swTask_type(task) = 0;
+
+        if (data.length() >= SW_IPC_MAX_SIZE - sizeof(task->info))
+        {
+            if (swTaskWorker_large_pack(task, (char *) data.c_str(), (int) data.length()) < 0)
+            {
+                swWarn("large task pack failed()");
+                return SW_ERR;
+            }
+        }
+        else
+        {
+            memcpy(task->data, (char *) data.c_str(), data.length());
+            task->info.len = (uint16_t) data.length();
+        }
+        return task->info.fd;
+    }
+
+    static string task_unpack(swEventData *task_result)
+    {
+        char *result_data_str;
+        int result_data_len = 0;
+        int data_len;
+        char *data_str = NULL;
+
+        if (swTask_type(task_result) & SW_TASK_TMPFILE)
+        {
+            swTaskWorker_large_unpack(task_result, malloc, data_str, data_len);
+            /**
+             * unpack failed
+             */
+            if (data_len == -1)
+            {
+                if (data_str != NULL)
+                {
+                    free(data_str);
+                }
+                return string("");
+            }
+            result_data_str = data_str;
+            result_data_len = data_len;
+        }
+        else
+        {
+            result_data_str = task_result->data;
+            result_data_len = task_result->info.len;
+        }
+
+        return string(result_data_str, (size_t) result_data_len);
+    }
+
+    static int check_task_param(int dst_worker_id)
+    {
+        if (SwooleG.task_worker_num < 1)
+        {
+            swWarn("Task method cannot use, Please set task_worker_num.");
+            return SW_ERR;
+        }
+        if (dst_worker_id >= SwooleG.task_worker_num)
+        {
+            swWarn("worker_id must be less than serv->task_worker_num.");
+            return SW_ERR;
+        }
+        if (!swIsWorker())
+        {
+            swWarn("The method can only be used in the worker process.");
+            return SW_ERR;
+        }
+        return SW_OK;
+    }
+
+    int Server::task(string &data, int dst_worker_id)
+    {
+        if (SwooleGS->start == 0)
+        {
+            swWarn("Server is not running.");
+            return false;
+        }
+
+        swEventData buf;
+        if (check_task_param(dst_worker_id) < 0)
+        {
+            return false;
+        }
+
+        if (task_pack(&buf, data) < 0)
+        {
+            return false;
+        }
+
+        swTask_type(&buf) |= SW_TASK_NONBLOCK;
+        if (swProcessPool_dispatch(&SwooleGS->task_workers, &buf, &dst_worker_id) >= 0)
+        {
+            sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
+            return buf.info.fd;
+        }
+        else
+        {
+            return -1;
+        }
     }
 
     bool Server::sendto(string &ip, int port, string &data, int server_socket)
@@ -166,7 +277,7 @@ namespace swoole
         {
             ret = swSocket_udp_sendto(server_socket, (char *) ip.c_str(), port, (char *) data.c_str(), data.length());
         }
-        return ret == SW_OK ? true : false;
+        return ret == SW_OK;
     }
 
     bool Server::start(void)
@@ -204,6 +315,14 @@ namespace swoole
         {
             serv.onWorkerStop = Server::_onWorkerStop;
         }
+        if (this->events & EVENT_onTask)
+        {
+            serv.onTask = Server::_onTask;
+        }
+        if (this->events & EVENT_onFinish)
+        {
+            serv.onFinish = Server::_onFinish;
+        }
         int ret = swServer_start(&serv);
         if (ret < 0)
         {
@@ -215,12 +334,6 @@ namespace swoole
 
     int Server::_onReceive(swServer *serv, swEventData *req)
     {
-        swConnection *conn = swWorker_get_connection(serv, req->info.fd);
-        swoole_rtrim(req->data, req->info.len);
-        printf("onReceive: ip=%s|port=%d Data=%s|Len=%d\n", swConnection_get_ip(conn),
-               swConnection_get_port(conn), req->data, req->info.len);
-
-        cout << req->data << endl;
         string str(req->data, req->info.len);
         Server *_this = (Server *) serv->ptr2;
         _this->onReceive(req->info.fd, str);
@@ -312,5 +425,19 @@ namespace swoole
     {
         Server *_this = (Server *) serv->ptr2;
         _this->onClose(info->fd);
+    }
+
+    int Server::_onTask(swServer *serv, swEventData *task)
+    {
+        Server *_this = (Server *) serv->ptr2;
+        string data = task_unpack(task);
+        _this->onTask(task->info.fd, task->info.from_fd, data);
+    }
+
+    int Server::_onFinish(swServer *serv, swEventData *task)
+    {
+        Server *_this = (Server *) serv->ptr2;
+        string data = task_unpack(task);
+        _this->onFinish(task->info.fd, data);
     }
 }
