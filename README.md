@@ -15,9 +15,8 @@ sudo make install
 Build libswoole_cpp.so
 ====
 ```shell
-mkdir build
-cd build
-cmake ..
+cmake .
+#cmake -DCMAKE_INSTALL_PREFIX=/opt/swoole .
 make
 sudo make install
 ```
@@ -33,5 +32,5 @@ make
 Run
 ===
 ```shell
-./bin/server
+./server
 ```
