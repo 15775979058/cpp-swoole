@@ -103,23 +103,28 @@ namespace swoole
 
     bool Timer::del(swTimer_node *tnode)
     {
+        if (!SwooleG.timer.set)
+        {
+            swWarn("no timer");
+            return false;
+        }
         if (timer_map.erase(tnode->id) == 0)
         {
             return false;
         }
-        timer_map.erase(tnode->id);
-        tnode->id = -1;
-        return true;
+        if (Timer::del(tnode) < 0)
+        {
+            return false;
+        }
+        else
+        {
+            swTimer_del(&SwooleG.timer, tnode);
+            return true;
+        }
     }
 
     bool Timer::clear(long id)
     {
-        if (!SwooleG.timer.set)
-        {
-            swWarn( "no timer");
-            return false;
-        }
-
         map<long, Timer *>::iterator iter  = timer_map.find(id);
         if ( iter == timer_map.end())
         {
@@ -132,14 +137,9 @@ namespace swoole
             tnode->remove = 1;
             return true;
         }
-        if (Timer::del(tnode) < 0)
-        {
-            return false;
-        }
         else
         {
-            swTimer_del(&SwooleG.timer, tnode);
-            return true;
+            return Timer::del(tnode);
         }
     }
 

@@ -107,18 +107,24 @@ public:
 
 protected:
     virtual void callback(void);
+    int count = 0;
 };
 
 void MyTimer::callback()
 {
-    cout << "hello world" << endl;
+    printf("#%d\thello world\n", count);
+    if (count > 9)
+    {
+        this->clear();
+    }
+    count++;
 }
 
 int main(int argc, char **argv)
 {
     if (argc < 2)
     {
-        MyTimer t(1000, false);
+        MyTimer t(1000);
         event_wait();
     }
     else
