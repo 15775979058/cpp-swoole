@@ -11,32 +11,19 @@ public:
     MyServer(string _host, int _port, int _mode = SW_MODE_PROCESS, int _type = SW_SOCK_TCP) :
             Server(_host, _port, _mode, _type)
     {
-        //SwooleG.task_worker_num = 2;
+        serv.worker_num = 4;
+        SwooleG.task_worker_num = 2;
     }
 
     virtual void onStart();
-
-    virtual void onShutdown(){
-
-    }
-
-    virtual void onWorkerStart(int worker_id){
-
-    }
-
-    virtual void onWorkerStop(int worker_id){
-
-    }
-
+    virtual void onShutdown() {};
+    virtual void onWorkerStart(int worker_id) {}
+    virtual void onWorkerStop(int worker_id) {}
+    virtual void onPipeMessage(int src_worker_id, const DataBuffer &) {}
     virtual void onReceive(int fd, const DataBuffer &data);
-
     virtual void onConnect(int fd);
-
     virtual void onClose(int fd);
-
-    virtual void onPacket(const DataBuffer &data, ClientInfo &clientInfo){
-
-    }
+    virtual void onPacket(const DataBuffer &data, ClientInfo &clientInfo) {};
 
     virtual void onTask(int task_id, int src_worker_id, const DataBuffer &data);
     virtual void onFinish(int task_id, const DataBuffer &data);

@@ -126,7 +126,7 @@ namespace swoole
     bool Timer::clear(long id)
     {
         map<long, Timer *>::iterator iter  = timer_map.find(id);
-        if ( iter == timer_map.end())
+        if (iter == timer_map.end())
         {
             return false;
         }

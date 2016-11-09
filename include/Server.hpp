@@ -22,6 +22,7 @@
 
 #include <vector>
 #include <string>
+#include <swoole/swoole.h>
 
 #include "Timer.hpp"
 
@@ -92,6 +93,7 @@ namespace swoole
         EVENT_onClose = 1u << 8,
         EVENT_onTask = 1u << 9,
         EVENT_onFinish = 1u << 10,
+        EVENT_onPipeMessage = 1u << 11,
     };
 
     class Server
@@ -105,11 +107,22 @@ namespace swoole
         bool start(void);
         void setEvents(int _events);
         bool listen(string host, int port, int type);
-        bool send(int fd, string &data);
         bool send(int fd, const char *data, int length);
+        bool send(int fd, const DataBuffer &data);
+        bool sendfile(int fd, string &file, off_t offset = 0);
+        bool sendMessage(int worker_id, DataBuffer &data);
+        bool sendwait(int fd, const DataBuffer &data);
         bool close(int fd, bool reset = false);
-        bool sendto(string &ip, int port, string &data, int server_socket = -1);
+        bool sendto(string &ip, int port, const DataBuffer &data, int server_socket = -1);
         int task(DataBuffer &data, int dst_worker_id = -1);
+        bool finish(DataBuffer &data);
+        DataBuffer taskwait(const DataBuffer &data, double timeout = SW_TASKWAIT_TIMEOUT, int dst_worker_id = -1);
+        map<int, DataBuffer> taskWaitMulti(const vector<DataBuffer> &data, double timeout = SW_TASKWAIT_TIMEOUT);
+
+        int getLastError()
+        {
+            return SwooleG.error;
+        }
 
         virtual void onStart() = 0;
         virtual void onShutdown() = 0;
@@ -119,6 +132,7 @@ namespace swoole
         virtual void onConnect(int fd) = 0;
         virtual void onClose(int fd) = 0;
         virtual void onPacket(const DataBuffer &, ClientInfo &) = 0;
+        virtual void onPipeMessage(int src_worker_id, const DataBuffer &) = 0;
         virtual void onTask(int, int, const DataBuffer &) = 0;
         virtual void onFinish(int, const DataBuffer &) = 0;
 
@@ -127,6 +141,7 @@ namespace swoole
         static void _onConnect(swServer *serv, swDataHead *info);
         static void _onClose(swServer *serv, swDataHead *info);
         static int _onPacket(swServer *serv, swEventData *req);
+        static void _onPipeMessage(swServer *serv, swEventData *req);
         static void _onStart(swServer *serv);
         static void _onShutdown(swServer *serv);
         static void _onWorkerStart(swServer *serv, int worker_id);

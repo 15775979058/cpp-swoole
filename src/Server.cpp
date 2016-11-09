@@ -15,6 +15,7 @@
 */
 
 #include "Server.hpp"
+#include <sys/stat.h>
 
 namespace swoole
 {
@@ -78,17 +79,17 @@ namespace swoole
         }
     }
 
-    bool Server::send(int fd, string &data)
+    bool Server::send(int fd, const DataBuffer &data)
     {
         if (SwooleGS->start == 0)
         {
             return false;
         }
-        if (data.length() <= 0)
+        if (data.length <= 0)
         {
             return false;
         }
-        return serv.send(&serv, fd, (char *) data.c_str(), data.length()) == SW_OK ? true : false;
+        return serv.send(&serv, fd, (char *) data.buffer, data.length) == 0;
     }
 
     bool Server::send(int fd, const char *data, int length)
@@ -101,7 +102,7 @@ namespace swoole
         {
             return false;
         }
-        return serv.send(&serv, fd, (char *) data, length) == SW_OK ? true : false;
+        return serv.send(&serv, fd, (char *) data, length) == SW_OK;
     }
 
     bool Server::close(int fd, bool reset)
@@ -146,7 +147,7 @@ namespace swoole
 
     static int task_id = 0;
 
-    static int task_pack(swEventData *task, DataBuffer &data)
+    static int task_pack(swEventData *task, const DataBuffer &data)
     {
         task->info.type = SW_EVENT_TASK;
         //field fd save task_id
@@ -235,7 +236,7 @@ namespace swoole
             data_len = req->info.len;
         }
 
-        if (header_length >= data_len)
+        if (header_length >= (uint32_t) data_len)
         {
             return retval;
         }
@@ -310,13 +311,23 @@ namespace swoole
         }
     }
 
-    bool Server::sendto(string &ip, int port, string &data, int server_socket)
+    bool Server::finish(DataBuffer &data)
+    {
+        if (SwooleGS->start == 0)
+        {
+            swWarn("Server is not running.");
+            return false;
+        }
+        return swTaskWorker_finish(&serv, (char *) data.buffer, (int) data.length, 0) == 0;
+    }
+
+    bool Server::sendto(string &ip, int port, const DataBuffer &data, int server_socket)
     {
         if (SwooleGS->start == 0)
         {
             return false;
         }
-        if (data.length() <= 0)
+        if (data.length <= 0)
         {
             return false;
         }
@@ -344,13 +355,113 @@ namespace swoole
         int ret;
         if (ipv6)
         {
-            ret = swSocket_udp_sendto6(server_socket, (char *) ip.c_str(), port, (char *) data.c_str(), data.length());
+            ret = swSocket_udp_sendto6(server_socket, (char *) ip.c_str(), port, (char *) data.buffer, data.length);
         }
         else
         {
-            ret = swSocket_udp_sendto(server_socket, (char *) ip.c_str(), port, (char *) data.c_str(), data.length());
+            ret = swSocket_udp_sendto(server_socket, (char *) ip.c_str(), port, (char *) data.buffer, data.length);
         }
         return ret == SW_OK;
+    }
+
+    bool Server::sendfile(int fd, string &file, off_t offset)
+    {
+        if (SwooleGS->start == 0)
+        {
+            swWarn("Server is not running.");
+            return false;
+        }
+
+        //check fd
+        if (fd <= 0 || fd > SW_MAX_SOCKET_ID)
+        {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d].", fd);
+            return false;
+        }
+
+        struct stat file_stat;
+        if (stat(file.c_str(), &file_stat) < 0)
+        {
+            swWarn("stat(%s) failed.", file.c_str());
+            return false;
+        }
+        if (file_stat.st_size <= offset)
+        {
+            swWarn("file[offset=%ld] is empty.", offset);
+            return false;
+        }
+        return swServer_tcp_sendfile(&serv, fd, (char *) file.c_str(), file.length(), offset) == SW_OK;
+    }
+
+    bool Server::sendMessage(int worker_id, DataBuffer &data)
+    {
+        swEventData buf;
+
+        if (SwooleGS->start == 0)
+        {
+            swWarn("Server is not running.");
+            return false;
+        }
+
+        if (worker_id == (int) SwooleWG.id)
+        {
+            swWarn("cannot send message to self.");
+            return false;
+        }
+
+        if (worker_id >= serv.worker_num + SwooleG.task_worker_num)
+        {
+            swWarn("worker_id[%d] is invalid.", worker_id);
+            return false;
+        }
+
+        if (serv.onPipeMessage == NULL)
+        {
+            swWarn("onPipeMessage is null, cannot use sendMessage.");
+            return false;
+        }
+
+        if (task_pack(&buf, data) < 0)
+        {
+            return false;
+        }
+
+        buf.info.type = SW_EVENT_PIPE_MESSAGE;
+        buf.info.from_id = SwooleWG.id;
+
+        swWorker *to_worker = swServer_get_worker(&serv, (uint16_t) worker_id);
+        return swWorker_send2worker(to_worker, &buf, sizeof(buf.info) + buf.info.len,
+                                    SW_PIPE_MASTER | SW_PIPE_NONBLOCK) == SW_OK;
+    }
+
+    bool Server::sendwait(int fd, const DataBuffer &data)
+    {
+        if (SwooleGS->start == 0)
+        {
+            swWarn( "Server is not running.");
+            return false;
+        }
+        if (data.length <= 0)
+        {
+            return false;
+        }
+        if (serv.factory_mode != SW_MODE_SINGLE || swIsTaskWorker())
+        {
+            swWarn("cannot sendwait.");
+            return false;
+        }
+
+        //UDP
+        if (swServer_is_udp(fd))
+        {
+            swWarn("cannot sendwait.");
+            return false;
+        }
+            //TCP
+        else
+        {
+            return swServer_tcp_sendwait(&serv, fd, data.buffer, data.length) == 0;
+        }
     }
 
     bool Server::start(void)
@@ -395,6 +506,10 @@ namespace swoole
         if (this->events & EVENT_onFinish)
         {
             serv.onFinish = Server::_onFinish;
+        }
+        if (this->events & EVENT_onPipeMessage)
+        {
+            serv.onPipeMessage = Server::_onPipeMessage;
         }
         int ret = swServer_start(&serv);
         if (ret < 0)
@@ -498,6 +613,13 @@ namespace swoole
         _this->onClose(info->fd);
     }
 
+    void Server::_onPipeMessage(swServer *serv, swEventData *req)
+    {
+        DataBuffer zdata = task_unpack(req);
+        Server *_this = (Server *) serv->ptr2;
+        _this->onPipeMessage(req->info.from_id, zdata);
+    }
+
     int Server::_onTask(swServer *serv, swEventData *task)
     {
         Server *_this = (Server *) serv->ptr2;
@@ -513,4 +635,167 @@ namespace swoole
         _this->onFinish(task->info.fd, data);
         return SW_OK;
     }
+
+    DataBuffer Server::taskwait(const DataBuffer &data, double timeout, int dst_worker_id)
+    {
+        swEventData buf;
+        DataBuffer retval;
+
+        if (SwooleGS->start == 0)
+        {
+            swWarn("server is not running.");
+            return retval;
+        }
+
+        if (check_task_param(dst_worker_id) < 0)
+        {
+            return retval;
+        }
+
+        task_pack(&buf, data);
+
+        uint64_t notify;
+        swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
+        bzero(task_result, sizeof(swEventData));
+        swPipe *task_notify_pipe = &SwooleG.task_notify[SwooleWG.id];
+        int efd = task_notify_pipe->getFd(task_notify_pipe, 0);
+
+        //clear history task
+        while (read(efd, &notify, sizeof(notify)) > 0);
+
+        if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, &dst_worker_id) >= 0)
+        {
+            sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
+            task_notify_pipe->timeout = timeout;
+            int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
+            if (ret > 0)
+            {
+                return task_unpack(task_result);
+            }
+            else
+            {
+                swWarn("taskwait failed. Error: %s[%d]", strerror(errno), errno);
+            }
+        }
+        return retval;
+    }
+
+    map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, double timeout)
+    {
+        swEventData buf;
+        map<int, DataBuffer> retval;
+
+        if (SwooleGS->start == 0)
+        {
+            swWarn("server is not running.");
+            return retval;
+        }
+
+        int dst_worker_id;
+        int task_id;
+        int i = 0;
+        int n_task = tasks.size();
+
+        int list_of_id[1024];
+
+        uint64_t notify;
+        swEventData *task_result = &(SwooleG.task_result[SwooleWG.id]);
+        bzero(task_result, sizeof(swEventData));
+        swPipe *task_notify_pipe = &SwooleG.task_notify[SwooleWG.id];
+        swWorker *worker = swServer_get_worker(&serv, SwooleWG.id);
+
+        char _tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;
+        int _tmpfile_fd = swoole_tmpfile(_tmpfile);
+        if (_tmpfile_fd < 0)
+        {
+            swSysError("mktemp(%s) failed.", SW_TASK_TMP_FILE);
+            return retval;
+        }
+
+        close(_tmpfile_fd);
+        int *finish_count = (int *) task_result->data;
+
+        worker->lock.lock(&worker->lock);
+        *finish_count = 0;
+        memcpy(task_result->data + 4, _tmpfile, sizeof(_tmpfile));
+        worker->lock.unlock(&worker->lock);
+
+        //clear history task
+        int efd = task_notify_pipe->getFd(task_notify_pipe, 0);
+        while (read(efd, &notify, sizeof(notify)) > 0);
+
+        for(auto task = tasks.begin(); task != tasks.end();)
+        {
+            task_id = task_pack(&buf, *task);
+            if (task_id < 0)
+            {
+                swWarn("task pack failed.");
+                goto fail;
+            }
+            swTask_type(&buf) |= SW_TASK_WAITALL;
+            dst_worker_id = -1;
+            if (swProcessPool_dispatch_blocking(&SwooleGS->task_workers, &buf, &dst_worker_id) >= 0)
+            {
+                sw_atomic_fetch_add(&SwooleStats->tasking_num, 1);
+                list_of_id[i] = task_id;
+            }
+            else
+            {
+                swWarn("taskwait failed. Error: %s[%d]", strerror(errno), errno);
+                fail:
+                    retval[i] = DataBuffer();
+                n_task --;
+            }
+            i++;
+        }
+
+
+        while (n_task > 0)
+        {
+            task_notify_pipe->timeout = timeout;
+            int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
+            if (ret > 0)
+            {
+                if (*finish_count == n_task)
+                {
+                    break;
+                }
+            }
+            else
+            {
+                swSysError("taskwait failed.");
+                unlink(_tmpfile);
+                return retval;
+            }
+        }
+
+        swString *content = swoole_file_get_contents(_tmpfile);
+        if (content == NULL)
+        {
+            return retval;
+        }
+
+        swEventData *result;
+        DataBuffer zdata;
+        int j;
+
+        for (i = 0; i < n_task; i++)
+        {
+            result = (swEventData *) (content->str + content->offset);
+            task_id = result->info.fd;
+            zdata = task_unpack(result);
+            for (j = 0; j < n_task; j++)
+            {
+                if (list_of_id[j] == task_id)
+                {
+                    break;
+                }
+            }
+            retval[j] =  zdata;
+            content->offset += sizeof(swDataHead) + result->info.len;
+        }
+        unlink(_tmpfile);
+        return retval;
+    }
+
 }

@@ -45,7 +45,7 @@ namespace swoole
             m_tnode = tnode;
         }
 
-        long clear()
+        void clear()
         {
             if (m_tnode)
             {
