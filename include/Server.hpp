@@ -1,15 +1,30 @@
-//
-// Created by htf on 16-9-12.
-//
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  +----------------------------------------------------------------------+
+*/
 
-#ifndef SERVER_SERVER_H
-#define SERVER_SERVER_H
+#ifndef SWOOLE_CPP_SERVER_H
+#define SWOOLE_CPP_SERVER_H
 
 #include <swoole/config.h>
 #include <swoole/Server.h>
 
 #include <vector>
 #include <string>
+
+#include "Timer.hpp"
+
 using namespace std;
 
 namespace swoole
@@ -53,6 +68,15 @@ namespace swoole
             length = _length;
             buffer = malloc(_length);
             memcpy(buffer, _data, _length);
+        }
+
+        void free()
+        {
+            if (buffer)
+            {
+                ::free(buffer);
+                buffer = NULL;
+            }
         }
     };
 
@@ -119,4 +143,4 @@ namespace swoole
         int events;
     };
 }
-#endif //SERVER_SERVER_H
+#endif //SWOOLE_CPP_SERVER_H

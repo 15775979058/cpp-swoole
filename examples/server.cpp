@@ -1,4 +1,5 @@
 #include <swoole/Server.hpp>
+#include <swoole/Timer.hpp>
 #include <iostream>
 
 using namespace std;
@@ -89,13 +90,45 @@ void MyServer::onStart()
     printf("server start\n");
 }
 
+class MyTimer : Timer
+{
+public:
+    MyTimer(long ms, bool interval) :
+            Timer(ms, interval)
+    {
+
+    }
+
+    MyTimer(long ms) :
+            Timer(ms)
+    {
+
+    }
+
+protected:
+    virtual void callback(void);
+};
+
+void MyTimer::callback()
+{
+    cout << "hello world" << endl;
+}
+
 int main(int argc, char **argv)
 {
-    MyServer server("127.0.0.1", 9501, SW_MODE_SINGLE);
-    server.listen("127.0.0.1", 9502, SW_SOCK_UDP);
-    server.listen("::1", 9503, SW_SOCK_TCP6);
-    server.listen("::1", 9504, SW_SOCK_UDP6);
-    server.setEvents(EVENT_onStart | EVENT_onReceive | EVENT_onClose | EVENT_onTask | EVENT_onFinish);
-    server.start();
+    if (argc < 2)
+    {
+        MyTimer t(1000, false);
+        event_wait();
+    }
+    else
+    {
+        MyServer server("127.0.0.1", 9501, SW_MODE_SINGLE);
+        server.listen("127.0.0.1", 9502, SW_SOCK_UDP);
+        server.listen("::1", 9503, SW_SOCK_TCP6);
+        server.listen("::1", 9504, SW_SOCK_UDP6);
+        server.setEvents(EVENT_onStart | EVENT_onReceive | EVENT_onClose | EVENT_onTask | EVENT_onFinish);
+        server.start();
+    }
     return 0;
 }
