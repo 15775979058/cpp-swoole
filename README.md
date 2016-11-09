@@ -12,12 +12,21 @@ cmake .
 sudo make install
 ```
 
-Build
+Build libswoole_cpp.so
 ====
 ```shell
 mkdir build
 cd build
 cmake ..
+make
+sudo make install
+```
+
+Build example server
+====
+```shell
+cd examples
+cmake .
 make
 ```
 
