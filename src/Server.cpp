@@ -556,14 +556,12 @@ namespace swoole
         //udp ipv4
         if (req->info.type == SW_EVENT_UDP)
         {
-            struct in_addr sin_addr;
-            sin_addr.s_addr = packet->addr.v4.s_addr;
             inet_ntop(AF_INET, &packet->addr.v4, clientInfo.address, sizeof(clientInfo.address));
             data = packet->data;
             length = packet->length;
             clientInfo.port = packet->port;
         }
-            //udp ipv6
+        //udp ipv6
         else if (req->info.type == SW_EVENT_UDP6)
         {
             inet_ntop(AF_INET6, &packet->addr.v6, clientInfo.address, sizeof(clientInfo.address));
@@ -571,7 +569,7 @@ namespace swoole
             length = packet->length;
             clientInfo.port = packet->port;
         }
-            //unix dgram
+        //unix dgram
         else if (req->info.type == SW_EVENT_UNIX_DGRAM)
         {
             memcpy(clientInfo.address, packet->data, packet->addr.un.path_length);
