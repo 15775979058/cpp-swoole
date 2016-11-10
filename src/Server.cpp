@@ -218,8 +218,8 @@ namespace swoole
         swPackage package;
         if (req->info.type == SW_EVENT_PACKAGE)
         {
-            memcpy(&package, req->data, sizeof (package));
-            data_ptr = package.data;
+            memcpy(&package, req->data, sizeof(package));
+            data_ptr = (char *) package.data;
             data_len = package.length;
         }
 #else
