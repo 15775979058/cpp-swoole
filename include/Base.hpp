@@ -17,6 +17,9 @@
 #ifndef SWOOLE_CPP_BASE_HPP
 #define SWOOLE_CPP_BASE_HPP
 
+#include <swoole/config.h>
+#include <swoole/swoole.h>
+
 namespace swoole
 {
     void event_init(void);

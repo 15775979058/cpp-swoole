@@ -17,14 +17,12 @@
 #ifndef SWOOLE_CPP_SERVER_H
 #define SWOOLE_CPP_SERVER_H
 
-#include <swoole/config.h>
-#include <swoole/Server.h>
-
 #include <vector>
 #include <string>
-#include <swoole/swoole.h>
+#include <map>
 
-#include "Timer.hpp"
+#include "Base.hpp"
+#include <swoole/Server.h>
 
 using namespace std;
 

@@ -5,6 +5,26 @@
 using namespace std;
 using namespace swoole;
 
+class MyTimer : Timer
+{
+public:
+    MyTimer(long ms, bool interval) :
+            Timer(ms, interval)
+    {
+
+    }
+
+    MyTimer(long ms) :
+            Timer(ms)
+    {
+
+    }
+
+protected:
+    virtual void callback(void);
+    int count = 0;
+};
+
 class MyServer : public Server
 {
 public:
@@ -17,7 +37,7 @@ public:
 
     virtual void onStart();
     virtual void onShutdown() {};
-    virtual void onWorkerStart(int worker_id) {}
+    virtual void onWorkerStart(int worker_id);
     virtual void onWorkerStop(int worker_id) {}
     virtual void onPipeMessage(int src_worker_id, const DataBuffer &) {}
     virtual void onReceive(int fd, const DataBuffer &data);
@@ -27,6 +47,9 @@ public:
 
     virtual void onTask(int task_id, int src_worker_id, const DataBuffer &data);
     virtual void onFinish(int task_id, const DataBuffer &data);
+
+protected:
+    MyTimer *timer;
 };
 
 void MyServer::onReceive(int fd, const DataBuffer &data)
@@ -95,25 +118,10 @@ void MyServer::onStart()
     printf("server start\n");
 }
 
-class MyTimer : Timer
+void MyServer::onWorkerStart(int worker_id)
 {
-public:
-    MyTimer(long ms, bool interval) :
-            Timer(ms, interval)
-    {
-
-    }
-
-    MyTimer(long ms) :
-            Timer(ms)
-    {
-
-    }
-
-protected:
-    virtual void callback(void);
-    int count = 0;
-};
+    timer = new MyTimer(1000);
+}
 
 void MyTimer::callback()
 {
@@ -138,7 +146,7 @@ int main(int argc, char **argv)
         server.listen("127.0.0.1", 9502, SW_SOCK_UDP);
         server.listen("::1", 9503, SW_SOCK_TCP6);
         server.listen("::1", 9504, SW_SOCK_UDP6);
-        server.setEvents(EVENT_onStart | EVENT_onReceive | EVENT_onPacket| EVENT_onClose | EVENT_onTask | EVENT_onFinish);
+        server.setEvents(EVENT_onStart|EVENT_onWorkerStart | EVENT_onReceive | EVENT_onPacket| EVENT_onClose | EVENT_onTask | EVENT_onFinish);
         server.start();
     }
     return 0;
