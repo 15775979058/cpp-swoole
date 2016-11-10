@@ -113,7 +113,7 @@ namespace swoole
         bool sendMessage(int worker_id, DataBuffer &data);
         bool sendwait(int fd, const DataBuffer &data);
         bool close(int fd, bool reset = false);
-        bool sendto(string &ip, int port, const DataBuffer &data, int server_socket = -1);
+        bool sendto(const string &ip, int port, const DataBuffer &data, int server_socket = -1);
         int task(DataBuffer &data, int dst_worker_id = -1);
         bool finish(DataBuffer &data);
         DataBuffer taskwait(const DataBuffer &data, double timeout = SW_TASKWAIT_TIMEOUT, int dst_worker_id = -1);

@@ -321,7 +321,7 @@ namespace swoole
         return swTaskWorker_finish(&serv, (char *) data.buffer, (int) data.length, 0) == 0;
     }
 
-    bool Server::sendto(string &ip, int port, const DataBuffer &data, int server_socket)
+    bool Server::sendto(const string &ip, int port, const DataBuffer &data, int server_socket)
     {
         if (SwooleGS->start == 0)
         {
@@ -361,7 +361,7 @@ namespace swoole
         {
             ret = swSocket_udp_sendto(server_socket, (char *) ip.c_str(), port, (char *) data.buffer, data.length);
         }
-        return ret == SW_OK;
+        return ret > 0;
     }
 
     bool Server::sendfile(int fd, string &file, off_t offset)
@@ -558,8 +558,7 @@ namespace swoole
         {
             struct in_addr sin_addr;
             sin_addr.s_addr = packet->addr.v4.s_addr;
-            char *tmp = inet_ntoa(sin_addr);
-            memcpy(clientInfo.address, tmp, strlen(tmp));
+            inet_ntop(AF_INET, &packet->addr.v4, clientInfo.address, sizeof(clientInfo.address));
             data = packet->data;
             length = packet->length;
             clientInfo.port = packet->port;
@@ -567,7 +566,7 @@ namespace swoole
             //udp ipv6
         else if (req->info.type == SW_EVENT_UDP6)
         {
-            inet_ntop(AF_INET6, &packet->addr.v6, clientInfo.address, sizeof( clientInfo.address));
+            inet_ntop(AF_INET6, &packet->addr.v6, clientInfo.address, sizeof(clientInfo.address));
             data = packet->data;
             length = packet->length;
             clientInfo.port = packet->port;

@@ -11,8 +11,8 @@ public:
     MyServer(string _host, int _port, int _mode = SW_MODE_PROCESS, int _type = SW_SOCK_TCP) :
             Server(_host, _port, _mode, _type)
     {
-        serv.worker_num = 4;
-        SwooleG.task_worker_num = 2;
+//        serv.worker_num = 4;
+//        SwooleG.task_worker_num = 2;
     }
 
     virtual void onStart();
@@ -23,7 +23,7 @@ public:
     virtual void onReceive(int fd, const DataBuffer &data);
     virtual void onConnect(int fd);
     virtual void onClose(int fd);
-    virtual void onPacket(const DataBuffer &data, ClientInfo &clientInfo) {};
+    virtual void onPacket(const DataBuffer &data, ClientInfo &clientInfo);
 
     virtual void onTask(int task_id, int src_worker_id, const DataBuffer &data);
     virtual void onFinish(int task_id, const DataBuffer &data);
@@ -50,6 +50,24 @@ void MyServer::onReceive(int fd, const DataBuffer &data)
     DataBuffer task_data("hello world\n");
     this->task(task_data);
 //    this->close(fd);
+}
+
+void MyServer::onPacket(const DataBuffer &data, ClientInfo &clientInfo)
+{
+    printf("recv, length=%d, str=%s, client=%s:%d\n", data.length,  (char *) data.buffer, clientInfo.address, clientInfo.port);
+    char resp_data[SW_BUFFER_SIZE];
+    int n = snprintf(resp_data, SW_BUFFER_SIZE, (char *) "Server: %*s\n", (int) data.length, (char *) data.buffer);
+    auto sent_data =  DataBuffer(resp_data, n);
+    auto ip = string(clientInfo.address);
+    auto ret = this->sendto(ip, clientInfo.port, sent_data);
+    if (!ret)
+    {
+        printf("send to client failed. errno=%d\n", errno);
+    }
+    else
+    {
+        printf("send %d bytes to client success. data=%s\n", n, resp_data);
+    }
 }
 
 void MyServer::onConnect(int fd)
@@ -120,7 +138,7 @@ int main(int argc, char **argv)
         server.listen("127.0.0.1", 9502, SW_SOCK_UDP);
         server.listen("::1", 9503, SW_SOCK_TCP6);
         server.listen("::1", 9504, SW_SOCK_UDP6);
-        server.setEvents(EVENT_onStart | EVENT_onReceive | EVENT_onClose | EVENT_onTask | EVENT_onFinish);
+        server.setEvents(EVENT_onStart | EVENT_onReceive | EVENT_onPacket| EVENT_onClose | EVENT_onTask | EVENT_onFinish);
         server.start();
     }
     return 0;
