@@ -65,8 +65,9 @@ namespace swoole
         void copy(void *_data, size_t _length)
         {
             length = _length;
-            buffer = malloc(_length);
+            buffer = malloc(_length + 1);
             memcpy(buffer, _data, _length);
+            ((char *) buffer)[_length] = '\0';
         }
 
         void free()
