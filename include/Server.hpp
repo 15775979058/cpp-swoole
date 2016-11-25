@@ -36,6 +36,8 @@ namespace swoole
         int server_socket;
     };
 
+    static swString *_callback_buffer = NULL;
+
     struct DataBuffer
     {
         size_t length;
@@ -64,19 +66,19 @@ namespace swoole
 
         void copy(void *_data, size_t _length)
         {
+            if (length >= _callback_buffer->size)
+            {
+                size_t new_size;
+                do
+                {
+                    new_size = _callback_buffer->size * 2;
+                } while (new_size < length + 1);
+                swString_extend(_callback_buffer, new_size);
+            }
             length = _length;
-            buffer = malloc(_length + 1);
+            buffer = _callback_buffer->str;
             memcpy(buffer, _data, _length);
             ((char *) buffer)[_length] = '\0';
-        }
-
-        void free()
-        {
-            if (buffer)
-            {
-                ::free(buffer);
-                buffer = NULL;
-            }
         }
     };
 

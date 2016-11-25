@@ -27,6 +27,11 @@ namespace swoole
 
         swServer_init(&serv);
 
+        if (_callback_buffer == NULL)
+        {
+            _callback_buffer = swString_new(8192);
+        }
+
         if (_mode == SW_MODE_SINGLE)
         {
             serv.reactor_num = 1;
@@ -525,7 +530,6 @@ namespace swoole
         DataBuffer data = get_recv_data(req, NULL, 0);
         Server *_this = (Server *) serv->ptr2;
         _this->onReceive(req->info.fd, data);
-        data.free();
         return SW_OK;
     }
 
@@ -615,7 +619,6 @@ namespace swoole
         DataBuffer data = task_unpack(req);
         Server *_this = (Server *) serv->ptr2;
         _this->onPipeMessage(req->info.from_id, data);
-        data.free();
     }
 
     int Server::_onTask(swServer *serv, swEventData *task)
@@ -623,7 +626,6 @@ namespace swoole
         Server *_this = (Server *) serv->ptr2;
         DataBuffer data = task_unpack(task);
         _this->onTask(task->info.fd, task->info.from_fd, data);
-        data.free();
         return SW_OK;
     }
 
@@ -632,7 +634,6 @@ namespace swoole
         Server *_this = (Server *) serv->ptr2;
         DataBuffer data = task_unpack(task);
         _this->onFinish(task->info.fd, data);
-        data.free();
         return SW_OK;
     }
 
