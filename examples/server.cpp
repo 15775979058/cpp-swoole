@@ -31,8 +31,8 @@ public:
     MyServer(string _host, int _port, int _mode = SW_MODE_PROCESS, int _type = SW_SOCK_TCP) :
             Server(_host, _port, _mode, _type)
     {
-//        serv.worker_num = 4;
-//        SwooleG.task_worker_num = 2;
+        serv.worker_num = 4;
+        SwooleG.task_worker_num = 2;
     }
 
     virtual void onStart();
@@ -120,7 +120,7 @@ void MyServer::onStart()
 
 void MyServer::onWorkerStart(int worker_id)
 {
-    timer = new MyTimer(1000);
+    //timer = new MyTimer(1000);
 }
 
 void MyTimer::callback()
@@ -137,8 +137,8 @@ int main(int argc, char **argv)
 {
     if (argc < 2)
     {
-        MyTimer t(1000);
-        event_wait();
+//        MyTimer t(1000);
+//        event_wait();
     }
     else
     {

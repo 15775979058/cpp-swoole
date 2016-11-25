@@ -19,6 +19,7 @@
 
 namespace swoole
 {
+    swString *_callback_buffer;
     Server::Server(string _host, int _port, int _mode, int _type)
     {
         host = _host;
@@ -26,11 +27,6 @@ namespace swoole
         mode = _mode;
 
         swServer_init(&serv);
-
-        if (_callback_buffer == NULL)
-        {
-            _callback_buffer = swString_new(8192);
-        }
 
         if (_mode == SW_MODE_SINGLE)
         {
@@ -516,6 +512,7 @@ namespace swoole
         {
             serv.onPipeMessage = Server::_onPipeMessage;
         }
+        _callback_buffer = swString_new(8192);
         int ret = swServer_start(&serv);
         if (ret < 0)
         {
@@ -749,7 +746,6 @@ namespace swoole
             }
             i++;
         }
-
 
         while (n_task > 0)
         {

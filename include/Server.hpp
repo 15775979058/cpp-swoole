@@ -36,7 +36,7 @@ namespace swoole
         int server_socket;
     };
 
-    static swString *_callback_buffer = NULL;
+    extern swString *_callback_buffer;
 
     struct DataBuffer
     {
