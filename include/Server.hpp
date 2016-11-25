@@ -69,7 +69,7 @@ namespace swoole
             if (_length >= _callback_buffer->size)
             {
                 size_t new_size = _callback_buffer->size * 2;
-                while (new_size < _length + 1);
+                while (new_size < _length + 1)
                 {
                     new_size *= 2;
                 }
