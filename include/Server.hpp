@@ -66,13 +66,13 @@ namespace swoole
 
         void copy(void *_data, size_t _length)
         {
-            if (length >= _callback_buffer->size)
+            if (_length >= _callback_buffer->size)
             {
                 size_t new_size;
                 do
                 {
                     new_size = _callback_buffer->size * 2;
-                } while (new_size < length + 1);
+                } while (new_size < _length + 1);
                 swString_extend(_callback_buffer, new_size);
             }
             length = _length;
