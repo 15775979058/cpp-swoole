@@ -175,8 +175,6 @@ namespace swoole
 
     static DataBuffer task_unpack(swEventData *task_result)
     {
-        char *result_data_str;
-        int result_data_len = 0;
         int data_len;
         char *data_str = NULL;
         DataBuffer retval;
@@ -195,20 +193,15 @@ namespace swoole
                 }
                 return retval;
             }
-            result_data_str = data_str;
-            result_data_len = data_len;
+            retval.copy(data_str, (size_t) data_len);
+            free(data_str);
         }
         else
         {
-            result_data_str = task_result->data;
-            result_data_len = task_result->info.len;
+            retval.copy(task_result->data, (size_t) task_result->info.len);
         }
-
-        retval.copy(result_data_str, (size_t) result_data_len);
-        free(result_data_str);
         return retval;
     }
-
 
     static DataBuffer get_recv_data(swEventData *req, char *header, uint32_t header_length)
     {
