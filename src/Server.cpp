@@ -205,6 +205,7 @@ namespace swoole
         }
 
         retval.copy(result_data_str, (size_t) result_data_len);
+        free(result_data_str);
         return retval;
     }
 
