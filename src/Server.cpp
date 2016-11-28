@@ -73,7 +73,8 @@ namespace swoole
         if (ls == NULL)
         {
             return false;
-        } else
+        }
+        else
         {
             ports.push_back(ls);
             return true;
