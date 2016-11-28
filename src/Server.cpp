@@ -16,6 +16,7 @@
 
 #include "Server.hpp"
 #include <sys/stat.h>
+#include <swoole/Server.h>
 
 namespace swoole
 {
@@ -176,26 +177,28 @@ namespace swoole
 
     static DataBuffer task_unpack(swEventData *task_result)
     {
-        int data_len;
-        char *data_str = NULL;
         DataBuffer retval;
 
         if (swTask_type(task_result) & SW_TASK_TMPFILE)
         {
-            swTaskWorker_large_unpack(task_result, malloc, data_str, data_len);
-            /**
-             * unpack failed
-             */
-            if (data_len == -1)
+            swPackage_task _pkg;
+            memcpy(&_pkg, task_result->data, sizeof(_pkg));
+
+            int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);
+            if (tmp_file_fd < 0)
             {
-                if (data_str != NULL)
-                {
-                    free(data_str);
-                }
-                return retval;
+                swSysError("open(%s) failed.", _pkg.tmpfile);
             }
-            retval.copy(data_str, (size_t) data_len);
-            free(data_str);
+            else
+            {
+                void *_buffer = retval.alloc((size_t) _pkg.length);
+                if (swoole_sync_readfile(tmp_file_fd, _buffer, _pkg.length) > 0)
+                {
+                    close(tmp_file_fd);
+                    unlink(_pkg.tmpfile);
+                }
+            }
+            return retval;
         }
         else
         {

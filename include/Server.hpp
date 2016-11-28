@@ -66,19 +66,28 @@ namespace swoole
 
         void copy(void *_data, size_t _length)
         {
-            if (_length >= _callback_buffer->size)
+            alloc(_length);
+            memcpy(buffer, _data, _length);
+        }
+
+        void *alloc(size_t _size)
+        {
+            if (_size >= _callback_buffer->size)
             {
                 size_t new_size = _callback_buffer->size * 2;
-                while (new_size < _length + 1)
+                while (new_size < _size + 1)
                 {
                     new_size *= 2;
                 }
-                swString_extend(_callback_buffer, new_size);
+                if (swString_extend(_callback_buffer, new_size) < 0)
+                {
+                    abort();
+                }
             }
-            length = _length;
+            length = _size;
             buffer = _callback_buffer->str;
-            memcpy(buffer, _data, _length);
-            ((char *) buffer)[_length] = '\0';
+            ((char *) buffer)[_size] = '\0';
+            return buffer;
         }
     };
 
