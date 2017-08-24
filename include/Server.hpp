@@ -119,7 +119,7 @@ namespace swoole
         bool listen(string host, int port, int type);
         bool send(int fd, const char *data, int length);
         bool send(int fd, const DataBuffer &data);
-        bool sendfile(int fd, string &file, off_t offset = 0);
+        bool sendfile(int fd, string &file, off_t offset = 0, size_t length = 0);
         bool sendMessage(int worker_id, DataBuffer &data);
         bool sendwait(int fd, const DataBuffer &data);
         bool close(int fd, bool reset = false);

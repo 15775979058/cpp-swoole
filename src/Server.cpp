@@ -363,7 +363,7 @@ namespace swoole
         return ret > 0;
     }
 
-    bool Server::sendfile(int fd, string &file, off_t offset)
+    bool Server::sendfile(int fd, string &file, off_t offset, size_t length)
     {
         if (SwooleGS->start == 0)
         {
@@ -389,7 +389,7 @@ namespace swoole
             swWarn("file[offset=%ld] is empty.", offset);
             return false;
         }
-        return swServer_tcp_sendfile(&serv, fd, (char *) file.c_str(), file.length(), offset) == SW_OK;
+        return swServer_tcp_sendfile(&serv, fd, (char *) file.c_str(), file.length(), offset, length) == SW_OK;
     }
 
     bool Server::sendMessage(int worker_id, DataBuffer &data)

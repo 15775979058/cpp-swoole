@@ -14,6 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
+#include <swoole/swoole.h>
 #include "Timer.hpp"
 
 using namespace std;
@@ -35,8 +36,6 @@ namespace swoole
     void Timer::init(int msec)
     {
         swTimer_init(msec);
-        SwooleG.timer.onAfter = Timer::_onAfter;
-        SwooleG.timer.onTick = Timer::_onTick;
     }
 
     void Timer::_onAfter(swTimer *timer, swTimer_node *tnode)
@@ -87,7 +86,17 @@ namespace swoole
             Timer::init(ms);
         }
 
-        swTimer_node *tnode = swTimer_add(&SwooleG.timer, ms, tick ? 1 : 0, (void *) object);
+        swTimerCallback timer_func;
+        if (tick)
+        {
+            timer_func = Timer::_onTick;
+        }
+        else
+        {
+            timer_func =  Timer::_onAfter;
+        }
+
+        swTimer_node *tnode = SwooleG.timer.add(&SwooleG.timer, ms, tick, (void *) object, timer_func);
         if (tnode == NULL)
         {
             swWarn("addtimer failed.");
